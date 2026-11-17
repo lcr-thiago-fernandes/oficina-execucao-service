@@ -40,7 +40,7 @@ jobs:
   validar:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: hashicorp/setup-terraform@v4
         with:
@@ -65,7 +65,7 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # So main e develop assumem a role (trust OIDC); qualquer outra ref falha alto.
       # REF_NAME e ACAO_PEDIDA entram por env (nunca interpolados no script).
