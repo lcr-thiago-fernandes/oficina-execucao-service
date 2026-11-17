@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: oficina-execucao
+  namespace: ${NAMESPACE}
+  labels:
+    app: oficina-execucao
+spec:
+  # NodePort, não LoadBalancer: o NLB interno é criado pelo Terraform do
+  # oficina-infra-k8s, que anexa o ASG dos nós a um target group nesta porta.
+  type: NodePort
+  selector:
+    app: oficina-execucao
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      # nodePort é único no cluster inteiro: 30084 = produção, 30085 = homologação
+      # (30080/30081 pertencem ao oficina-app). Fixado pelo cd.yml.
+      nodePort: ${NODE_PORT}
+      protocol: TCP
