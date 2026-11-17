@@ -1,0 +1,179 @@
+name: CD
+
+on:
+  push:
+    # Dois ambientes no mesmo cluster EKS, um namespace por branch.
+    # develop -> oficina-hml (homologacao); main -> oficina-prd (producao).
+    branches: [main, develop]
+  workflow_dispatch: {}
+
+# OIDC: id-token para assumir o role AWS; contents apenas leitura do repo.
+permissions:
+  id-token: write
+  contents: read
+
+# Serializa deploys por branch: um novo deploy na MESMA branch aguarda o anterior
+# concluir (nao cancela um rollout em voo).
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # ubuntu-latest ja traz Docker, AWS CLI v2, kubectl e envsubst pre-instalados.
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      # Tag da imagem = SHA do commit (imutavel, rastreavel).
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # 0) A role de deploy so existe depois do primeiro apply manual do terraform/
+      #    (infra.yml). Ate la o secret AWS_DEPLOY_ROLE_ARN esta vazio: o deploy e
+      #    pulado com aviso (exit 0) em vez de falhar o pipeline. Os passos seguintes
+      #    checam PULAR. O secret entra por `env:` (nunca interpolado no script).
+      - name: Verificar role de deploy
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$AWS_DEPLOY_ROLE_ARN" ]; then
+            echo "::warning::AWS_DEPLOY_ROLE_ARN ausente — a role só existe após o primeiro apply manual do terraform/ (infra.yml). Deploy pulado."
+            echo "PULAR=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+      # 1) Namespace, ambiente e nodePort derivados da branch. nodePort e unico no
+      #    cluster inteiro: 30084 = producao, 30085 = homologacao (30080/30081 sao do
+      #    oficina-app). AMBIENTE (prd|hml) e exportado separado de NAMESPACE porque os
+      #    manifests precisam do sufixo limpo.
+      #    REF_NAME vai por `env:` e nao interpolado no `run:`: `git check-ref-format`
+      #    nao proibe $, (, ), crase, aspas, ; nem & em nome de branch, e interpolado
+      #    direto o nome viraria comando no runner, ja com credenciais AWS assumidas.
+      #    So main e develop resolvem um ambiente; qualquer outra ref falha alto.
+      - name: Definir ambiente
+        if: env.PULAR != 'true'
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [ "$REF_NAME" = "main" ]; then
+            echo "NAMESPACE=oficina-prd" >> "$GITHUB_ENV"
+            echo "AMBIENTE=prd" >> "$GITHUB_ENV"
+            echo "NODE_PORT=30084" >> "$GITHUB_ENV"
+          elif [ "$REF_NAME" = "develop" ]; then
+            echo "NAMESPACE=oficina-hml" >> "$GITHUB_ENV"
+            echo "AMBIENTE=hml" >> "$GITHUB_ENV"
+            echo "NODE_PORT=30085" >> "$GITHUB_ENV"
+          else
+            echo "ERRO: ref '$REF_NAME' nao tem ambiente de deploy. Apenas main (oficina-prd) e develop (oficina-hml) sao implantaveis." >&2
+            exit 1
+          fi
+
+      # 2) Credenciais AWS via OIDC (SEM aws-access-key-id/secret): assume o role de deploy.
+      - name: Configurar credenciais AWS (OIDC)
+        if: env.PULAR != 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # 3) Identificadores de infraestrutura vem do SSM Parameter Store (escritos pelo
+      #    terraform/ deste repo e pelo oficina-infra-k8s). A atribuicao a variavel vem
+      #    ANTES do echo para que `set -e` interrompa o passo se o `aws ssm` falhar,
+      #    em vez de gravar valores vazios no ambiente.
+      - name: Ler parametros do SSM
+        if: env.PULAR != 'true'
+        run: |
+          set -euo pipefail
+
+          ecr_repository=$(aws ssm get-parameter --name /oficina/execucao/ecr_repository_url --query Parameter.Value --output text)
+          eks_cluster_name=$(aws ssm get-parameter --name /oficina/eks/cluster_name --query Parameter.Value --output text)
+          irsa_role_arn=$(aws ssm get-parameter --name "/oficina/execucao/${AMBIENTE}/irsa_role_arn" --query Parameter.Value --output text)
+
+          echo "ECR_REPOSITORY=${ecr_repository}" >> "$GITHUB_ENV"
+          echo "EKS_CLUSTER_NAME=${eks_cluster_name}" >> "$GITHUB_ENV"
+          echo "IRSA_ROLE_ARN=${irsa_role_arn}" >> "$GITHUB_ENV"
+
+      # 4) Login no ECR (usa as credenciais temporarias do passo 2).
+      - name: Login no Amazon ECR
+        if: env.PULAR != 'true'
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 5) Build + push da imagem (tag = SHA do commit).
+      - name: Build e push da imagem
+        if: env.PULAR != 'true'
+        run: |
+          set -euo pipefail
+          docker build -f docker/Dockerfile -t "$ECR_REPOSITORY:$IMAGE_TAG" .
+          docker push "$ECR_REPOSITORY:$IMAGE_TAG"
+
+      # 6) kubeconfig apontando para o cluster EKS (compartilhado pelos dois ambientes).
+      #    A access entry da role de deploy e restrita aos namespaces oficina-hml/prd
+      #    (namespace-scoped), entao `kubectl get namespace` daria Forbidden: a sonda
+      #    usa uma chamada namespaced. Os namespaces sao criados pelo CD do oficina-app;
+      #    este CD NAO aplica Namespace.
+      - name: Configurar kubeconfig e verificar namespace
+        if: env.PULAR != 'true'
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+
+          if ! kubectl -n "$NAMESPACE" get sa default >/dev/null; then
+            echo "::error::namespace $NAMESPACE inexistente ou sem acesso (criado pelo CD do oficina-app)"
+            exit 1
+          fi
+
+      # 7) ConfigMap e ServiceAccount (IRSA).
+      - name: Aplicar ConfigMap e ServiceAccount
+        if: env.PULAR != 'true'
+        run: |
+          set -euo pipefail
+          envsubst '${NAMESPACE} ${AMBIENTE}' < k8s/configmap.yaml | kubectl apply -f -
+          envsubst '${NAMESPACE} ${IRSA_ROLE_ARN}' < k8s/serviceaccount.yaml | kubectl apply -f -
+
+      # 8) Secret REAL a partir do AWS Secrets Manager (k8s/secret.yaml e so template,
+      #    NAO e aplicado). `create --dry-run=client -o yaml | apply` = upsert
+      #    idempotente. A chave NewRelic__LicenseKey precisa bater, case-sensitive, com
+      #    o secretKeyRef do Deployment.
+      - name: Criar/atualizar Secret do K8s
+        if: env.PULAR != 'true'
+        run: |
+          set -euo pipefail
+
+          JWT_SECRET=$(aws secretsmanager get-secret-value --secret-id oficina/jwt_secret --query SecretString --output text)
+          NR_KEY=$(aws secretsmanager get-secret-value --secret-id oficina/newrelic_license_key --query SecretString --output text)
+
+          # Registra os segredos no mascarador do Actions assim que existem: sao
+          # strings de shell comuns (nao GitHub Secrets), entao o mascaramento
+          # automatico NAO se aplica a eles.
+          echo "::add-mask::$JWT_SECRET"
+          echo "::add-mask::$NR_KEY"
+
+          # Falha cedo se algum segredo vier vazio: senao o pod sobe normalmente e o
+          # sintoma (JWT invalido, sem dados no New Relic) aparece longe da causa.
+          if [ -z "$JWT_SECRET" ]; then echo "ERRO: JWT_SECRET veio vazio do Secrets Manager (oficina/jwt_secret)." >&2; exit 1; fi
+          if [ -z "$NR_KEY" ]; then echo "ERRO: NR_KEY veio vazio do Secrets Manager (oficina/newrelic_license_key)." >&2; exit 1; fi
+
+          kubectl create secret generic oficina-execucao-secret \
+            --namespace "$NAMESPACE" \
+            --from-literal=Jwt__Secret="${JWT_SECRET}" \
+            --from-literal=NewRelic__LicenseKey="${NR_KEY}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # 9) Deployment + Service + HPA. Cada envsubst declara so as variaveis que o
+      #    respectivo manifest usa. Nao ha Job de migracao (DynamoDB, sem schema SQL).
+      - name: Aplicar Deployment, Service e HPA
+        if: env.PULAR != 'true'
+        run: |
+          set -euo pipefail
+          envsubst '${ECR_REPOSITORY} ${IMAGE_TAG} ${NAMESPACE} ${AMBIENTE}' < k8s/deployment.yaml | kubectl apply -f -
+          envsubst '${NAMESPACE} ${NODE_PORT}' < k8s/service.yaml | kubectl apply -f -
+          envsubst '${NAMESPACE}' < k8s/hpa.yaml | kubectl apply -f -
+
+      # 10) Aguarda o rollout terminar (falha o deploy se os pods novos nao ficarem prontos).
+      - name: Aguardar rollout
+        if: env.PULAR != 'true'
+        run: kubectl rollout status deployment/oficina-execucao -n "$NAMESPACE" --timeout=300s

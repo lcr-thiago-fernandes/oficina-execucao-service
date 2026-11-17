@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oficina-execucao-config
+  namespace: ${NAMESPACE}
+  labels:
+    app: oficina-execucao
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  # Emissor/audiência do JWT (não sensíveis); devem bater com o token emitido pela
+  # função de autenticação. "oficina-auth" é o valor da claim `iss`.
+  Jwt__Issuer: "oficina-auth"
+  Jwt__Audience: "oficina-api"
+  # Mensageria: SQS/SNS reais; AMBIENTE (hml|prd) prefixa filas/tópicos do ambiente.
+  # O nome da fila por instância do barramento usa a env HOSTNAME (nome do pod, que o
+  # Kubernetes define sozinho).
+  Mensageria__Transporte: "AmazonSqs"
+  Mensageria__PrefixoAmbiente: "${AMBIENTE}"
+  Mensageria__Regiao: "us-east-1"
+  # DynamoDB: a tabela é criada pelo Terraform, não pela aplicação.
+  DynamoDb__NomeTabela: "oficina-execucao-${AMBIENTE}"
+  DynamoDb__Regiao: "us-east-1"
+  DynamoDb__CriarTabelaSeAusente: "false"
+  # Capacidade de execução simultânea por unidade. Na demo da saga de compensação,
+  # força o esgotamento: kubectl -n oficina-prd set env deployment/oficina-execucao Execucao__CapacidadeMaximaPorUnidade=0
+  Execucao__CapacidadeMaximaPorUnidade: "20"
