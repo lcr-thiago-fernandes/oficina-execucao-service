@@ -2,6 +2,12 @@
   "version": 1,
   "dependencies": {
     "net8.0": {
+      "MassTransit.Abstractions": {
+        "type": "Direct",
+        "requested": "[8.5.12, )",
+        "resolved": "8.5.12",
+        "contentHash": "NauNyaQsJVfLSY3Jw/zr26POQpEnfjerHCrrK3kUmkCDIpC63PZD1AjihGFgq0KH5eGagMJ7GRHN74w8mI69Kg=="
+      },
       "oficina.execucao.dominio": {
         "type": "Project"
       }

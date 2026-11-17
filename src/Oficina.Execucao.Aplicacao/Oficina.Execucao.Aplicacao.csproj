@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Oficina.Execucao.Dominio\Oficina.Execucao.Dominio.csproj" />
+    <PackageReference Include="MassTransit.Abstractions" Version="8.5.12" />
   </ItemGroup>
 
   <PropertyGroup>

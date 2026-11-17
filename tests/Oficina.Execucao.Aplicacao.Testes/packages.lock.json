@@ -61,6 +61,11 @@
           "System.Diagnostics.EventLog": "6.0.0"
         }
       },
+      "MassTransit.Abstractions": {
+        "type": "Transitive",
+        "resolved": "8.5.12",
+        "contentHash": "NauNyaQsJVfLSY3Jw/zr26POQpEnfjerHCrrK3kUmkCDIpC63PZD1AjihGFgq0KH5eGagMJ7GRHN74w8mI69Kg=="
+      },
       "Microsoft.CodeCoverage": {
         "type": "Transitive",
         "resolved": "17.12.0",
@@ -154,6 +159,7 @@
       "oficina.execucao.aplicacao": {
         "type": "Project",
         "dependencies": {
+          "MassTransit.Abstractions": "[8.5.12, )",
           "Oficina.Execucao.Dominio": "[1.0.0, )"
         }
       },
