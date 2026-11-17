@@ -38,8 +38,8 @@ public sealed class EnfileirarExecucaoHandler
         ExecucaoOs execucao;
         try
         {
-            var servicos = (comando.Servicos ?? []).Select(i => new ItemExecucao(i.Descricao, i.Quantidade)).ToList();
-            var pecas = (comando.Pecas ?? []).Select(i => new ItemExecucao(i.Descricao, i.Quantidade)).ToList();
+            var servicos = (comando.Servicos ?? []).Select(Mapear).ToList();
+            var pecas = (comando.Pecas ?? []).Select(Mapear).ToList();
             execucao = ExecucaoOs.Enfileirar(comando.OrdemServicoId, comando.NumeroOs, comando.Unidade,
                 servicos, pecas, _relogio.AgoraUtc);
         }
@@ -68,6 +68,11 @@ public sealed class EnfileirarExecucaoHandler
                 return await RecusarAsync(comando, RegraCapacidade.MotivoCapacidadeEsgotada(execucao.Unidade, capacidade), ct);
         }
     }
+
+    private static ItemExecucao Mapear(ItemExecucaoMensagem? item) =>
+        item is null
+            ? throw new ExecucaoInvalidaException("Item nulo na lista de servicos ou pecas.")
+            : new ItemExecucao(item.Descricao, item.Quantidade);
 
     private async Task<ResultadoEnfileiramento> RecusarAsync(IniciarExecucao comando, string motivo, CancellationToken ct)
     {

@@ -167,6 +167,23 @@ public class EnfileirarExecucaoHandlerTestes
         publicador.Verify(p => p.PublicarAsync(It.Is<ExecucaoRecusada>(m => m.Motivo.StartsWith("Comando IniciarExecucao inválido:")), ct), Times.Once);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Executar_ItemNulo_RecusaNaoLanca(bool nosServicos)
+    {
+        SemExistente();
+        repo.Setup(r => r.InserirRecusadaAsync(It.IsAny<ExecucaoOs>(), ct)).ReturnsAsync(ResultadoGravacao.Gravada);
+        IReadOnlyList<ItemExecucaoMensagem> comNulo = [null!];
+
+        var comando = nosServicos ? Comando(servicos: comNulo) : Comando(pecas: comNulo);
+        var r = await Criar().ExecutarAsync(comando, ct);
+
+        r.Enfileirada.Should().BeFalse();
+        publicador.Verify(p => p.PublicarAsync(It.Is<ExecucaoRecusada>(m => m.Motivo.StartsWith("Comando IniciarExecucao inválido:")), ct), Times.Once);
+        repo.Verify(x => x.InserirNaFilaAsync(It.IsAny<ExecucaoOs>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Fact]
     public async Task Executar_ItemComQuantidadeZero_RecusaNaoLanca()
     {
