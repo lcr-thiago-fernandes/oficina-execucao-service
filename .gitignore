@@ -1,0 +1,52 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.pdb
+[Dd]ebug/
+[Rr]elease/
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+## EF Core migrations bundle output
+*.zip
+
+## IDE
+.vs/
+#.vscode/
+.idea/
+*.swp
+
+## OS
+.DS_Store
+Thumbs.db
+
+## env
+.env
+.env.local
+
+## Claude Code / Serena
+.claude/
+CLAUDE.md
+.serena/
+.serena-cache/
+memory/
+
+## Superpowers (artefatos de brainstorming/planejamento — nao versionar)
+docs/superpowers/
+.superpowers/
+
+## Roteiro do video (artefato de preparacao — nao versionar)
+docs/entrega/roteiro-video-fase2.md
+
+# Terraform
+.terraform/
+*.tfstate*
+tfplan
+*.tfvars
+!exemplo.tfvars

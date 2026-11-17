@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net8.0": {
+      "oficina.execucao.aplicacao": {
+        "type": "Project",
+        "dependencies": {
+          "Oficina.Execucao.Dominio": "[1.0.0, )"
+        }
+      },
+      "oficina.execucao.dominio": {
+        "type": "Project"
+      },
+      "oficina.execucao.infraestrutura": {
+        "type": "Project",
+        "dependencies": {
+          "Oficina.Execucao.Aplicacao": "[1.0.0, )"
+        }
+      }
+    }
+  }
+}
