@@ -28,7 +28,10 @@ public class InfraHttpTestes(DynamoDbApiFixture dynamo)
         var resposta = await factory.CreateClient().GetAsync("/execucao/swagger/v1/swagger.json");
 
         resposta.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await resposta.Content.ReadAsStringAsync()).Should().Contain("/api/v1/execucoes/{osId}/diagnostico");
+        var corpo = await resposta.Content.ReadAsStringAsync();
+        corpo.Should().Contain("/api/v1/execucoes/{osId}/diagnostico");
+        using var doc = System.Text.Json.JsonDocument.Parse(corpo);
+        doc.RootElement.GetProperty("servers")[0].GetProperty("url").GetString().Should().Be("/execucao");
     }
 
     [Fact]

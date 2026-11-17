@@ -15,9 +15,9 @@ public static class GeradorTokenDeTeste
     public const string Issuer = "oficina-auth";
     public const string Audience = "oficina-api";
 
-    public static string Gerar(string perfil, string audiencia = Audience)
+    public static string Gerar(string perfil, string audiencia = Audience, string segredo = Secret, bool expirado = false)
     {
-        var chave = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Secret));
+        var chave = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(segredo));
         var credenciais = new SigningCredentials(chave, SecurityAlgorithms.HmacSha256);
 
         var claims = new List<Claim>
@@ -32,8 +32,8 @@ public static class GeradorTokenDeTeste
             issuer: Issuer,
             audience: audiencia,
             claims: claims,
-            notBefore: DateTime.UtcNow,
-            expires: DateTime.UtcNow.AddMinutes(60),
+            notBefore: DateTime.UtcNow.AddMinutes(expirado ? -120 : 0),
+            expires: DateTime.UtcNow.AddMinutes(expirado ? -60 : 60),
             signingCredentials: credenciais);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

@@ -38,6 +38,28 @@ public class AutorizacaoTestes(DynamoDbApiFixture dynamo)
     }
 
     [Fact]
+    public async Task Get_TokenComAssinaturaErrada_401()
+    {
+        await using var factory = new ApiFactory(dynamo);
+        var cliente = factory.CreateClient();
+        cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
+            GeradorTokenDeTeste.Gerar("Admin", segredo: "outro-segredo-com-mais-de-32-caracteres-hs256"));
+
+        (await cliente.GetAsync(Rota)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Get_TokenExpirado_401()
+    {
+        await using var factory = new ApiFactory(dynamo);
+        var cliente = factory.CreateClient();
+        cliente.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", GeradorTokenDeTeste.Gerar("Admin", expirado: true));
+
+        (await cliente.GetAsync(Rota)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
     public async Task Get_TokenComAudienciaErrada_401()
     {
         await using var factory = new ApiFactory(dynamo);
