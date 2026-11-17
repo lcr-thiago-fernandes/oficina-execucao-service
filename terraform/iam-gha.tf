@@ -9,10 +9,15 @@ data "aws_iam_openid_connect_provider" "github" {
 
 locals {
   github_oidc_host = "token.actions.githubusercontent.com"
+  # Cada branch aceita os dois formatos de sub do GitHub (StringLike): o classico
+  # repo:<owner>/<repo>:... e o imutavel repo:<owner>@<id>/<repo>@<id>:..., que este
+  # owner usa (customizacao OIDC use_immutable_subject).
   # Trust escopada por BRANCH: so main (prd) e develop (hml). PR nao assume a role.
   subs_deploy = [
     "repo:${var.github_owner}/${var.github_repo}:ref:refs/heads/main",
+    "repo:${var.github_owner}@*/${var.github_repo}@*:ref:refs/heads/main",
     "repo:${var.github_owner}/${var.github_repo}:ref:refs/heads/develop",
+    "repo:${var.github_owner}@*/${var.github_repo}@*:ref:refs/heads/develop",
   ]
 }
 
@@ -33,7 +38,7 @@ data "aws_iam_policy_document" "trust_deploy" {
     }
 
     condition {
-      test     = "StringEquals"
+      test     = "StringLike"
       variable = "${local.github_oidc_host}:sub"
       values   = local.subs_deploy
     }
