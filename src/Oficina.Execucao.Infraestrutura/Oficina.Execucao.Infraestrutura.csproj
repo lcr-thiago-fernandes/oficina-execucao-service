@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="4.0.110.3" />
-    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.102.11" />
+    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.1.0.1" />
     <!-- IRSA: sem este pacote o SDK nao usa AssumeRoleWithWebIdentity e cai na role do no. -->
     <PackageReference Include="AWSSDK.SecurityToken" Version="4.0.101.11" />
     <PackageReference Include="MassTransit" Version="8.5.12" />
