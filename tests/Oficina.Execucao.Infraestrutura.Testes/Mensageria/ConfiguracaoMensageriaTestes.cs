@@ -59,6 +59,23 @@ public sealed class ConfiguracaoMensageriaTestes : IAsyncLifetime
             .And.Message.Should().Contain("AmazonSqs").And.Contain("InMemory");
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("PRD")]
+    [InlineData("hml_1")]
+    [InlineData("prd.oficina")]
+    public void PrefixoAmbienteInvalido_FalhaNaInicializacao(string prefixo)
+    {
+        var configuracao = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Mensageria:PrefixoAmbiente"] = prefixo })
+            .Build();
+
+        var acao = () => new ServiceCollection().AdicionarMensageria(configuracao);
+
+        acao.Should().Throw<InvalidOperationException>().WithMessage("*PrefixoAmbiente*");
+    }
+
     [Fact]
     public async Task InMemory_ConsumidorFalhando_NaoPublicaFault()
     {

@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using Amazon.SimpleNotificationService;
 using Amazon.SQS;
 using MassTransit;
@@ -8,7 +9,7 @@ using Oficina.Execucao.Aplicacao.Contratos.Mensagens;
 
 namespace Oficina.Execucao.Infraestrutura.Mensageria;
 
-public static class ConfiguracaoMensageria
+public static partial class ConfiguracaoMensageria
 {
     public const string TransporteAmazonSqs = "AmazonSqs";
     public const string TransporteInMemory = "InMemory";
@@ -28,6 +29,11 @@ public static class ConfiguracaoMensageria
     public static void ConfigurarRegistro(IBusRegistrationConfigurator x, OpcoesMensageria opcoes)
     {
         var prefixo = opcoes.PrefixoAmbiente;
+        if (string.IsNullOrEmpty(prefixo) || !PrefixoValido().IsMatch(prefixo))
+            throw new InvalidOperationException(
+                $"Valor de {OpcoesMensageria.Secao}:PrefixoAmbiente invalido: '{prefixo}'. " +
+                "Use apenas letras minusculas, digitos e '-' (ex.: local, hml, prd).");
+
         x.AddConsumer<IniciarExecucaoConsumer>();
 
         if (string.Equals(opcoes.Transporte, TransporteInMemory, StringComparison.OrdinalIgnoreCase))
@@ -54,7 +60,8 @@ public static class ConfiguracaoMensageria
                     }
                 });
                 // O nome padrao {maquina}_{assembly}_bus_{id} daria AccessDenied no EKS (IAM so permite ${amb}-oficina-*).
-                cfg.OverrideDefaultBusEndpointQueueName(NomesMensageria.FilaBus(prefixo));
+                // A fila e auto-delete e cada replica precisa da sua: sufixo com a instancia (nome do pod).
+                cfg.OverrideDefaultBusEndpointQueueName(NomesMensageria.FilaBus(prefixo, NomesMensageria.InstanciaAtual()));
                 ConfigurarBus(ctx, cfg, prefixo);
             });
         }
@@ -92,6 +99,9 @@ public static class ConfiguracaoMensageria
             e.ConfigureConsumer<IniciarExecucaoConsumer>(ctx);
         });
     }
+
+    [GeneratedRegex("^[a-z0-9-]+$")]
+    private static partial Regex PrefixoValido();
 
     private static void Prefixar<T>(IBusFactoryConfigurator cfg, string prefixo) where T : class =>
         cfg.Message<T>(m => m.SetEntityName(NomesMensageria.Topico(prefixo, typeof(T).Name)));

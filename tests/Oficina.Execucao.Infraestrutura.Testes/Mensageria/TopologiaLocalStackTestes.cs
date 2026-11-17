@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Oficina.Execucao.Aplicacao;
 using Oficina.Execucao.Aplicacao.Contratos.Mensagens;
+using Oficina.Execucao.Infraestrutura.Mensageria;
 using Testcontainers.LocalStack;
 
 namespace Oficina.Execucao.Infraestrutura.Testes.Mensageria;
@@ -117,11 +118,13 @@ public sealed class TopologiaLocalStackTestes : IClassFixture<LocalStackFixture>
     {
         // A fila do bus e criada sob demanda (resposta de request, handler conectado ao bus...);
         // conectar um handler forca a criacao para conferir o nome real no SQS.
-        _fx.Bus.Address.AbsolutePath.Should().Be("/test-oficina-execucao-bus");
+        var filaBus = NomesMensageria.FilaBus(LocalStackFixture.Prefixo, NomesMensageria.InstanciaAtual());
+        filaBus.Should().StartWith("test-oficina-execucao-bus-");
+        _fx.Bus.Address.AbsolutePath.Should().Be("/" + filaBus);
         var handle = _fx.Bus.ConnectHandler<ExecucaoFinalizada>(_ => Task.CompletedTask);
         try
         {
-            await AguardarFilaAsync("test-oficina-execucao-bus", TimeSpan.FromSeconds(30));
+            await AguardarFilaAsync(filaBus, TimeSpan.FromSeconds(30));
         }
         finally
         {
@@ -133,7 +136,8 @@ public sealed class TopologiaLocalStackTestes : IClassFixture<LocalStackFixture>
         filas.Should().NotBeEmpty();
         filas.Should().OnlyContain(u => u.Contains("/test-oficina-"));
         filas.Select(u => u.Substring(u.LastIndexOf('/') + 1)).Should().OnlyContain(n => n.StartsWith("test-oficina-"));
-        filas.Should().Contain(u => u.EndsWith("/test-oficina-execucao-bus"));
+        filas.Should().Contain(u => u.Contains("/test-oficina-execucao-bus-"));
+        filas.Should().Contain(u => u.EndsWith("/" + filaBus));
     }
 
     [Fact]
