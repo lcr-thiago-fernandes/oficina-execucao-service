@@ -50,3 +50,4 @@ docs/entrega/roteiro-video-fase2.md
 tfplan
 *.tfvars
 !exemplo.tfvars
+*.feature.cs
