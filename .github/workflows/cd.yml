@@ -27,7 +27,7 @@ jobs:
       # Tag da imagem = SHA do commit (imutavel, rastreavel).
       IMAGE_TAG: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # 0) A role de deploy so existe depois do primeiro apply manual do terraform/
       #    (infra.yml). Ate la o secret AWS_DEPLOY_ROLE_ARN esta vazio: o deploy e
