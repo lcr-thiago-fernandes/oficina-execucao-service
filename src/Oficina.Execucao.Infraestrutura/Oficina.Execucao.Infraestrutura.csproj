@@ -7,8 +7,11 @@
   <ItemGroup>
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="4.0.110.3" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.102.11" />
+    <PackageReference Include="MassTransit" Version="8.5.12" />
+    <PackageReference Include="MassTransit.AmazonSQS" Version="8.5.12" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
+    <PackageReference Include="NewRelic.Agent.Api" Version="10.54.0" />
   </ItemGroup>
 
   <PropertyGroup>
