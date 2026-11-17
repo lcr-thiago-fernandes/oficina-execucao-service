@@ -1,4 +1,4 @@
-# Contratos de infraestrutura (SSM)
+# Contratos entre repositórios (SSM e mensageria)
 
 O `terraform/` deste repositório conversa com os outros repositórios **só pelo SSM
 Parameter Store** (RFC-004): nenhum `terraform_remote_state`. Se um parâmetro consumido não
@@ -61,3 +61,28 @@ repositório) e `ecr_repository_url`.
 
 Rotas no HTTP API: `ANY /execucao/api/v1/{proxy+}` (authorizer `CUSTOM`) e, sem authorizer,
 `GET /execucao/health`, `GET /execucao/swagger`, `GET /execucao/swagger/{proxy+}`.
+
+## Mensageria fixada por este repositório
+
+| Recurso | Nome | Observação |
+|---|---|---|
+| Fila de comandos | `{prefixo}-oficina-execucao-comandos` | Recebe `IniciarExecucao` por send direto; `_error` para falha final |
+| Fila do bus | `{prefixo}-oficina-execucao-bus-{instância}` | Temporária (auto-delete), uma por réplica (nome do pod); casa com `${amb}-oficina-*` do IAM (spec §5) |
+| Tópicos | `{prefixo}-oficina-saga-{Nome}` | `ExecucaoEnfileirada`, `ExecucaoRecusada`, `StatusExecucaoAlterado`, `ExecucaoFinalizada` |
+
+Contratos (JSON em [`contratos/mensagens/`](contratos/mensagens/README.md)): consome `IniciarExecucao`; publica
+`ExecucaoEnfileirada`, `ExecucaoRecusada`, `StatusExecucaoAlterado`, `ExecucaoFinalizada`. URN `oficina:saga:<Nome>`,
+serialização `JsonSerializerDefaults.Web` com enum como string. `{prefixo}` ∈ `local | hml | prd`.
+
+Roles: `oficina-execucao-pod-{prd,hml}` (IRSA do pod: DynamoDB da tabela, SQS/SNS `${amb}-oficina-*`) e
+`oficina-gha-deploy-execucao` (deploy do CD, restrita aos namespaces `oficina-prd`/`oficina-hml`).
+
+## Pendências entre repositórios
+
+1. **`oficina-infra-k8s`:** publicar os 6 parâmetros SSM novos listados acima.
+2. **`oficina-infra-k8s/scripts/bootstrap.sh`:** incluir `oficina-execucao-service` em `REPOS_INFRA` (trust da role `oficina-gha-infra`).
+3. **Ordem de subida:** `oficina-infra-k8s` → `oficina-lambda-auth` → `terraform/` deste repositório
+   (`infra.yml` com `workflow_dispatch`, `acao=apply`) → secret `AWS_DEPLOY_ROLE_ARN` (output `gha_deploy_role_arn`) → CD.
+4. **OS Service (F15):** `IniciarExecucao` duplicado com a OS já fora da fila republica `ExecucaoEnfileirada`
+   com `PosicaoFila = 0`. A saga do `oficina-app` deve **ignorar** esse evento fora de `AguardandoExecucao`.
+   Ver [ADR-002](arquitetura/ADR-002-idempotencia-sem-outbox.md).
