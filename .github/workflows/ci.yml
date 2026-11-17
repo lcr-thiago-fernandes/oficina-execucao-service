@@ -78,59 +78,213 @@ jobs:
         run: dotnet format OficinaExecucao.sln --verify-no-changes --no-restore --verbosity diagnostic
 
   sonar:
-    # Nao obrigatorio: apenas avisa quando SONAR_TOKEN esta ausente (forks / conta nao configurada).
+    # Validacao de qualidade (SonarQube) em dois modos:
+    #  - SONAR_TOKEN configurado -> SonarCloud (organizacao em vars.SONAR_ORGANIZATION).
+    #  - SONAR_TOKEN ausente     -> SonarQube Community efemero (service container), sem conta externa:
+    #    analise real com quality gate + resumo das medidas em $GITHUB_STEP_SUMMARY e artefato.
+    # Bloco portavel: chave/nome do projeto derivados de github.event.repository.name.
     runs-on: ubuntu-latest
+    services:
+      sonarqube:
+        image: sonarqube:26.10.0.133078-community
+        env:
+          SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+        ports:
+          - 9000:9000
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION || 'lcr-thiago-fernandes' }}
+      SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION || github.repository_owner }}
+      SONARCLOUD_PROJECT_KEY: ${{ github.repository_owner }}_${{ github.event.repository.name }}
+      SONAR_PROJECT_KEY: ${{ github.event.repository.name }}
+      SONAR_PROJECT_NAME: ${{ github.event.repository.name }}
+      SONAR_LOCAL_URL: http://localhost:9000
+      SONAR_EXCLUSIONS: "terraform/**,k8s/**,docker/**"
     steps:
-      - name: Aviso sem SONAR_TOKEN
-        if: env.SONAR_TOKEN == ''
-        run: echo "::warning::SONAR_TOKEN ausente - analise SonarCloud pulada (fork ou conta ainda nao configurada)."
-
       - uses: actions/checkout@v4
-        if: env.SONAR_TOKEN != ''
         with:
           fetch-depth: 0
 
       - uses: actions/setup-java@v4
-        if: env.SONAR_TOKEN != ''
         with:
           distribution: temurin
           java-version: "17"
 
       - uses: actions/setup-dotnet@v4
-        if: env.SONAR_TOKEN != ''
         with:
           global-json-file: global.json
 
       - name: Install SonarScanner
-        if: env.SONAR_TOKEN != ''
         run: dotnet tool install --global dotnet-sonarscanner --version 12.1.0
 
-      - name: Sonar begin
+      - name: Detect solution
+        run: |
+          sln=$(ls *.sln | head -1)
+          test -n "$sln" || { echo "::error::Nenhuma .sln na raiz"; exit 1; }
+          echo "SOLUTION=$sln" >> "$GITHUB_ENV"
+
+      # ---------- Modo SonarCloud (SONAR_TOKEN presente) ----------
+      - name: Sonar begin (SonarCloud)
         if: env.SONAR_TOKEN != ''
         run: |
           dotnet sonarscanner begin \
-            /k:"lcr-thiago-fernandes_oficina-execucao-service" \
+            /k:"$SONARCLOUD_PROJECT_KEY" \
             /o:"$SONAR_ORGANIZATION" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
             /d:sonar.qualitygate.wait=true \
-            /d:sonar.exclusions="terraform/**,k8s/**,docker/**"
+            /d:sonar.exclusions="$SONAR_EXCLUSIONS"
 
-      - name: Build
+      - name: Build (SonarCloud)
         if: env.SONAR_TOKEN != ''
-        run: dotnet build OficinaExecucao.sln -c Release
+        run: dotnet build "$SOLUTION" -c Release
 
-      - name: Test
+      - name: Test (SonarCloud)
         if: env.SONAR_TOKEN != ''
-        run: dotnet test OficinaExecucao.sln --no-build -c Release --collect:"XPlat Code Coverage" --settings coverlet.runsettings
+        run: dotnet test "$SOLUTION" --no-build -c Release --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 
-      - name: Sonar end
+      - name: Sonar end (SonarCloud)
         if: env.SONAR_TOKEN != ''
         run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
+
+      # ---------- Modo SonarQube efemero (SONAR_TOKEN ausente) ----------
+      - name: Wait SonarQube UP
+        if: env.SONAR_TOKEN == ''
+        run: |
+          for i in $(seq 1 90); do
+            status=$(curl -fsS "$SONAR_LOCAL_URL/api/system/status" 2>/dev/null | jq -r '.status' 2>/dev/null || true)
+            echo "[$i] status=$status"
+            [ "$status" = "UP" ] && exit 0
+            sleep 5
+          done
+          echo "::error::SonarQube nao ficou UP a tempo"
+          exit 1
+
+      - name: Provision SonarQube (senha admin, token, projeto)
+        if: env.SONAR_TOKEN == ''
+        run: |
+          set -euo pipefail
+          pass="Aa1!$(openssl rand -hex 16)"
+          echo "::add-mask::$pass"
+          curl -fsS -u admin:admin -X POST "$SONAR_LOCAL_URL/api/users/change_password" \
+            --data-urlencode "login=admin" \
+            --data-urlencode "previousPassword=admin" \
+            --data-urlencode "password=$pass"
+          token=$(curl -fsS -u "admin:$pass" -X POST "$SONAR_LOCAL_URL/api/user_tokens/generate" \
+            --data-urlencode "name=ci-${GITHUB_RUN_ID}" | jq -r '.token')
+          test -n "$token" && test "$token" != "null"
+          echo "::add-mask::$token"
+          curl -fsS -u "$token:" -X POST "$SONAR_LOCAL_URL/api/projects/create" \
+            --data-urlencode "project=$SONAR_PROJECT_KEY" \
+            --data-urlencode "name=$SONAR_PROJECT_NAME"
+          echo
+          echo "SONAR_LOCAL_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Sonar begin (SonarQube local)
+        if: env.SONAR_TOKEN == ''
+        run: |
+          dotnet sonarscanner begin \
+            /k:"$SONAR_PROJECT_KEY" \
+            /n:"$SONAR_PROJECT_NAME" \
+            /d:sonar.host.url="$SONAR_LOCAL_URL" \
+            /d:sonar.token="$SONAR_LOCAL_TOKEN" \
+            /d:sonar.cs.opencover.reportsPaths="$GITHUB_WORKSPACE/SonarTestResults/**/coverage.opencover.xml" \
+            /d:sonar.cs.vstest.reportsPaths="$GITHUB_WORKSPACE/SonarTestResults/**/*.trx" \
+            /d:sonar.exclusions="$SONAR_EXCLUSIONS"
+
+      - name: Build (SonarQube local)
+        if: env.SONAR_TOKEN == ''
+        run: dotnet build "$SOLUTION" -c Release
+
+      - name: Test with coverage (SonarQube local)
+        if: env.SONAR_TOKEN == ''
+        run: |
+          dotnet test "$SOLUTION" --no-build -c Release \
+            --collect:"XPlat Code Coverage" --settings coverlet.runsettings \
+            --logger trx --results-directory "$GITHUB_WORKSPACE/SonarTestResults"
+          echo "Relatorios OpenCover:"
+          find "$GITHUB_WORKSPACE/SonarTestResults" -name 'coverage.opencover.xml'
+
+      - name: Sonar end (SonarQube local)
+        if: env.SONAR_TOKEN == ''
+        run: dotnet sonarscanner end /d:sonar.token="$SONAR_LOCAL_TOKEN"
+
+      - name: Quality gate + resumo (SonarQube local)
+        if: env.SONAR_TOKEN == ''
+        run: |
+          set -euo pipefail
+          auth="$SONAR_LOCAL_TOKEN:"
+          task_id=$(grep '^ceTaskId=' .sonarqube/out/.sonar/report-task.txt | cut -d= -f2)
+          ce=""
+          for i in $(seq 1 60); do
+            ce=$(curl -fsS -u "$auth" "$SONAR_LOCAL_URL/api/ce/task?id=$task_id" | jq -r '.task.status')
+            echo "[$i] CE task $task_id: $ce"
+            if [ "$ce" = "SUCCESS" ]; then break; fi
+            if [ "$ce" = "FAILED" ] || [ "$ce" = "CANCELED" ]; then
+              echo "::error::Processamento da analise falhou ($ce)"
+              exit 1
+            fi
+            sleep 5
+          done
+          if [ "$ce" != "SUCCESS" ]; then
+            echo "::error::Timeout no processamento da analise"
+            exit 1
+          fi
+
+          qg=$(curl -fsS -u "$auth" "$SONAR_LOCAL_URL/api/qualitygates/project_status?projectKey=$SONAR_PROJECT_KEY")
+          qg_status=$(echo "$qg" | jq -r '.projectStatus.status')
+          metrics="coverage,line_coverage,tests,bugs,vulnerabilities,security_hotspots,code_smells,duplicated_lines,duplicated_lines_density,ncloc,sqale_rating,reliability_rating,security_rating"
+          ms=$(curl -fsS -u "$auth" "$SONAR_LOCAL_URL/api/measures/component?component=$SONAR_PROJECT_KEY&metricKeys=$metrics")
+          version=$(curl -fsS "$SONAR_LOCAL_URL/api/server/version")
+          m() { echo "$ms" | jq -r --arg k "$1" '([.component.measures[] | select(.metric==$k) | .value] | first) // "n/a"'; }
+
+          mkdir -p sonar-summary
+          {
+            echo "## SonarQube - ${SONAR_PROJECT_NAME}"
+            echo
+            echo "Analise real em SonarQube Community ${version} efemero (service container do job), commit \`${GITHUB_SHA}\`."
+            echo
+            echo "**Quality Gate:** \`${qg_status}\`"
+            echo
+            echo "| Medida | Valor |"
+            echo "|---|---|"
+            echo "| Cobertura (%) | $(m coverage) |"
+            echo "| Cobertura de linhas (%) | $(m line_coverage) |"
+            echo "| Testes | $(m tests) |"
+            echo "| Bugs | $(m bugs) |"
+            echo "| Vulnerabilidades | $(m vulnerabilities) |"
+            echo "| Security hotspots | $(m security_hotspots) |"
+            echo "| Code smells | $(m code_smells) |"
+            echo "| Linhas duplicadas | $(m duplicated_lines) |"
+            echo "| Duplicacao (%) | $(m duplicated_lines_density) |"
+            echo "| Linhas de codigo (ncloc) | $(m ncloc) |"
+            echo "| Ratings manutenibilidade / confiabilidade / seguranca (1=A) | $(m sqale_rating) / $(m reliability_rating) / $(m security_rating) |"
+            echo
+            echo "<details><summary>Condicoes do quality gate</summary>"
+            echo
+            echo '```json'
+            echo "$qg" | jq '.projectStatus.conditions'
+            echo '```'
+            echo
+            echo "</details>"
+          } > sonar-summary/sonar-summary.md
+          echo "$ms" | jq '.' > sonar-summary/measures.json
+          echo "$qg" | jq '.' > sonar-summary/quality-gate.json
+          cat sonar-summary/sonar-summary.md
+          cat sonar-summary/sonar-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$qg_status" = "ERROR" ]; then
+            echo "::error::Quality Gate do SonarQube reprovado (ERROR)"
+            exit 1
+          fi
+
+      - name: Upload Sonar summary
+        if: always() && env.SONAR_TOKEN == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonar-summary
+          path: sonar-summary
+          if-no-files-found: warn
 
   docker-build:
     runs-on: ubuntu-latest
