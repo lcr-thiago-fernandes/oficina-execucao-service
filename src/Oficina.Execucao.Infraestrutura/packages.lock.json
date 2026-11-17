@@ -23,6 +23,15 @@
           "Microsoft.Extensions.Logging.Abstractions": "2.0.0"
         }
       },
+      "AWSSDK.SecurityToken": {
+        "type": "Direct",
+        "requested": "[4.0.101.11, )",
+        "resolved": "4.0.101.11",
+        "contentHash": "IfIEfVGU3EKSpjLOcFKLYPFCmvsTGs934Hndwy5FwX6q0UVikGGXQoAm+q7imfuXpXjK9cE1oaccMCG773oHlA==",
+        "dependencies": {
+          "AWSSDK.Core": "[4.0.103, 5.0.0)"
+        }
+      },
       "MassTransit": {
         "type": "Direct",
         "requested": "[8.5.12, )",

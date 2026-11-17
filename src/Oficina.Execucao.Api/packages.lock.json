@@ -117,6 +117,14 @@
           "Microsoft.Extensions.Logging.Abstractions": "2.0.0"
         }
       },
+      "AWSSDK.SecurityToken": {
+        "type": "Transitive",
+        "resolved": "4.0.101.11",
+        "contentHash": "IfIEfVGU3EKSpjLOcFKLYPFCmvsTGs934Hndwy5FwX6q0UVikGGXQoAm+q7imfuXpXjK9cE1oaccMCG773oHlA==",
+        "dependencies": {
+          "AWSSDK.Core": "[4.0.103, 5.0.0)"
+        }
+      },
       "AWSSDK.SimpleNotificationService": {
         "type": "Transitive",
         "resolved": "4.0.100.15",
@@ -440,6 +448,7 @@
         "dependencies": {
           "AWSSDK.DynamoDBv2": "[4.0.110.3, )",
           "AWSSDK.Extensions.NETCore.Setup": "[4.0.102.11, )",
+          "AWSSDK.SecurityToken": "[4.0.101.11, )",
           "MassTransit": "[8.5.12, )",
           "MassTransit.AmazonSQS": "[8.5.12, )",
           "Microsoft.Extensions.Hosting.Abstractions": "[8.0.1, )",
