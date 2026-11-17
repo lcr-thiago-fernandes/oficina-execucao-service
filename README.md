@@ -8,9 +8,9 @@ JWT, New Relic.
 
 ## Papel na Saga
 
-Participante da saga coreografada da OS (orquestrada pelo `oficina-app`). **A entrada na fila é o passo pivô**
+Participante da saga **orquestrada** da OS (o orquestrador fica no OS Service, `oficina-app`). **A entrada na fila é o passo pivô**
 (spec §4.2): depois de `ExecucaoEnfileirada` não se desfaz a gravação; se não há capacidade (ou o comando é
-inválido) o serviço publica `ExecucaoRecusada` e a saga compensa (estorno do pagamento e cancelamento do orçamento).
+inválido) o serviço publica `ExecucaoRecusada` e o orquestrador compensa (estorno no Billing/Mercado Pago, estoque restaurado e OS → Cancelada).
 Design completo: [fase4-design-arquitetural.md](https://github.com/lcr-thiago-fernandes/oficina-app/blob/develop/docs/arquitetura/fase4-design-arquitetural.md).
 
 ## Arquitetura

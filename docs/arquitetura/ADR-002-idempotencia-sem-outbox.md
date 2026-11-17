@@ -39,6 +39,6 @@ manualmente é seguro, e a falha final fica visível na fila `_error` em vez de 
 - (+) Reentrega, duplicata do produtor e réplicas concorrentes convergem para o mesmo estado.
 - (-) Janela entre gravar e publicar: coberta apenas pela reentrega da mensagem de entrada. Se o
   comando original se perder (não for reentregue), a saga do `oficina-app` precisa de timeout próprio.
-- (-) **Pendência (F15):** `IniciarExecucao` duplicado com a OS já fora da fila republica
-  `ExecucaoEnfileirada` com `PosicaoFila = 0`; a saga deve ignorar esse evento fora de `AguardandoExecucao`
+- (-) **Pendência (F15) — resolvida:** `IniciarExecucao` duplicado com a OS já fora da fila republica
+  `ExecucaoEnfileirada` com `PosicaoFila = 0`; a saga do OS Service ignora esse evento fora de `AguardandoExecucao`
   (ver [contratos](../contratos.md)).

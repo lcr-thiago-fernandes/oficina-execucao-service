@@ -100,7 +100,7 @@ public static partial class ConfiguracaoMensageria
         });
     }
 
-    [GeneratedRegex("^[a-z0-9-]+$")]
+    [GeneratedRegex(@"^[a-z0-9-]+\z")]
     private static partial Regex PrefixoValido();
 
     private static void Prefixar<T>(IBusFactoryConfigurator cfg, string prefixo) where T : class =>

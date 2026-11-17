@@ -21,8 +21,8 @@ A regra de dependência aponta para dentro: o domínio não conhece AWS nem Mass
 
 ## Papel na saga
 
-Participante da saga coreografada da OS; o orquestrador é o `oficina-app`. A **entrada na fila é o
+Participante da saga **orquestrada** da OS; o orquestrador fica no OS Service (`oficina-app`). A **entrada na fila é o
 passo pivô** (spec §4.2): `ExecucaoEnfileirada` confirma o ponto sem volta; `ExecucaoRecusada` (capacidade
-esgotada ou comando inválido) dispara a compensação (estorno e cancelamento do orçamento).
+esgotada ou comando inválido) faz o orquestrador compensar (estorno no Billing/Mercado Pago, estoque restaurado e OS → Cancelada).
 Design completo:
 [fase4-design-arquitetural.md](https://github.com/lcr-thiago-fernandes/oficina-app/blob/develop/docs/arquitetura/fase4-design-arquitetural.md).

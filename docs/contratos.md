@@ -83,6 +83,6 @@ Roles: `oficina-execucao-pod-{prd,hml}` (IRSA do pod: DynamoDB da tabela, SQS/SN
 2. **`oficina-infra-k8s/scripts/bootstrap.sh`:** incluir `oficina-execucao-service` em `REPOS_INFRA` (trust da role `oficina-gha-infra`).
 3. **Ordem de subida:** `oficina-infra-k8s` → `oficina-lambda-auth` → `terraform/` deste repositório
    (`infra.yml` com `workflow_dispatch`, `acao=apply`) → secret `AWS_DEPLOY_ROLE_ARN` (output `gha_deploy_role_arn`) → CD.
-4. **OS Service (F15):** `IniciarExecucao` duplicado com a OS já fora da fila republica `ExecucaoEnfileirada`
-   com `PosicaoFila = 0`. A saga do `oficina-app` deve **ignorar** esse evento fora de `AguardandoExecucao`.
+4. **OS Service (F15) — resolvida:** `IniciarExecucao` duplicado com a OS já fora da fila republica `ExecucaoEnfileirada`
+   com `PosicaoFila = 0`. A saga do `oficina-app` **ignora** esse evento fora de `AguardandoExecucao` (confirmado).
    Ver [ADR-002](arquitetura/ADR-002-idempotencia-sem-outbox.md).

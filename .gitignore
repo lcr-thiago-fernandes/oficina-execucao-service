@@ -13,9 +13,6 @@ coverage/
 *.coverage
 *.coveragexml
 
-## EF Core migrations bundle output
-*.zip
-
 ## IDE
 .vs/
 #.vscode/
@@ -41,8 +38,6 @@ memory/
 docs/superpowers/
 .superpowers/
 
-## Roteiro do video (artefato de preparacao — nao versionar)
-docs/entrega/roteiro-video-fase2.md
 
 # Terraform
 .terraform/

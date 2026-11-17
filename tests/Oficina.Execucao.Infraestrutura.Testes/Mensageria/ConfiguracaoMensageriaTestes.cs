@@ -65,6 +65,7 @@ public sealed class ConfiguracaoMensageriaTestes : IAsyncLifetime
     [InlineData("PRD")]
     [InlineData("hml_1")]
     [InlineData("prd.oficina")]
+    [InlineData("prd\n")]
     public void PrefixoAmbienteInvalido_FalhaNaInicializacao(string prefixo)
     {
         var configuracao = new ConfigurationBuilder()
