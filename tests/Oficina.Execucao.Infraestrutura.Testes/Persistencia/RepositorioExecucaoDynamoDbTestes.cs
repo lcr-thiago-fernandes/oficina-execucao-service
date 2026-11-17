@@ -208,6 +208,39 @@ public class RepositorioExecucaoDynamoDbTestes
     }
 
     [Fact]
+    public async Task InserirNaFila_MesmaOsEmUnidadeCheia_JaExistenteEContadorIntacto()
+    {
+        var (repo, tabela) = await NovoAsync();
+        var a = Os();
+        await repo.InserirNaFilaAsync(a, 1, default);
+
+        (await repo.InserirNaFilaAsync(a, 1, default)).Should().Be(ResultadoGravacao.JaExistente);
+
+        (await AtivasAsync(tabela, "SP-01")).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Atualizar_FinalizacaoDuplicada_DecrementaUmaVezSo()
+    {
+        var (repo, tabela) = await NovoAsync();
+        var a = Os();
+        var b = Os();
+        await repo.InserirNaFilaAsync(a, 5, default);
+        await repo.InserirNaFilaAsync(b, 5, default);
+        a.IniciarDiagnostico(null, T0.AddMinutes(1));
+        await repo.AtualizarAsync(a, default);
+        a.IniciarReparo(null, T0.AddMinutes(2));
+        await repo.AtualizarAsync(a, default);
+        a.Finalizar(null, T0.AddMinutes(3));
+        await repo.AtualizarAsync(a, default);
+
+        var act = () => repo.AtualizarAsync(a, default);
+
+        await act.Should().ThrowAsync<ConflitoDeConcorrenciaException>();
+        (await AtivasAsync(tabela, "SP-01")).Should().Be(1);
+    }
+
+    [Fact]
     public async Task ObterPosicaoNaFila_ContaSoNaFilaDaMesmaUnidade()
     {
         var (repo, _) = await NovoAsync();
