@@ -86,8 +86,9 @@ jobs:
     runs-on: ubuntu-latest
     services:
       sonarqube:
-        # Imagem vazia = service nao sobe (so e necessario no modo efemero, sem SONAR_TOKEN).
-        image: ${{ secrets.SONAR_TOKEN == '' && 'sonarqube:26.10.0.133078-community' || '' }}
+        # Sobe sempre: o GitHub Actions nao aceita o contexto `secrets` em services.image
+        # (workflow invalido), entao nao ha condicionamento barato pelo SONAR_TOKEN.
+        image: sonarqube:26.10.0.133078-community
         env:
           SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
         ports:
