@@ -1,0 +1,8 @@
+{
+  "ordemServicoId": "__OS_ID__",
+  "ocorridoEm": "__AGORA__",
+  "numeroOs": 1042,
+  "unidade": "__UNIDADE__",
+  "servicos": [ { "descricao": "Troca de oleo", "quantidade": 1 } ],
+  "pecas": [ { "descricao": "Filtro de oleo", "quantidade": 2 } ]
+}

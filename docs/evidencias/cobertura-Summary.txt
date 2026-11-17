@@ -1,0 +1,61 @@
+Summary
+  Generated on: 17/11/2026 - 00:11:44
+  Coverage date: 17/11/2026 - 00:10:33 - 17/11/2026 - 00:11:39
+  Parser: MultiReport (5x Cobertura)
+  Assemblies: 4
+  Classes: 33
+  Files: 29
+  Line coverage: 96.6%
+  Covered lines: 802
+  Uncovered lines: 28
+  Coverable lines: 830
+  Total lines: 1455
+  Branch coverage: 87.5% (218 of 249)
+  Covered branches: 218
+  Total branches: 249
+  Method coverage: 100% (120 of 120)
+  Full method coverage: 90% (108 of 120)
+  Covered methods: 120
+  Fully covered methods: 108
+  Total methods: 120
+
+Oficina.Execucao.Api                                                                                                                                  90.6%
+  Oficina.Execucao.Api.Configuracao.ConfiguracaoJwt                                                                                                   96.4%
+  Oficina.Execucao.Api.Configuracao.ConfiguracaoSwagger                                                                                                100%
+  Oficina.Execucao.Api.Configuracao.MiddlewareDeCorrelacao                                                                                              88%
+  Oficina.Execucao.Api.Configuracao.MiddlewareDeExcecoes                                                                                              72.2%
+  Oficina.Execucao.Api.Configuracao.PoliticasDeAutorizacao                                                                                             100%
+  Oficina.Execucao.Api.Controllers.ExecucoesController                                                                                                 100%
+  Oficina.Execucao.Api.Controllers.HealthController                                                                                                    100%
+
+Oficina.Execucao.Aplicacao                                                                                                                             100%
+  Oficina.Execucao.Aplicacao.Contratos.Mensagens.OpcoesJsonContrato                                                                                    100%
+  Oficina.Execucao.Aplicacao.DependencyInjection                                                                                                       100%
+  Oficina.Execucao.Aplicacao.Execucoes.AvancarExecucaoHandler                                                                                          100%
+  Oficina.Execucao.Aplicacao.Execucoes.ConflitoDeConcorrenciaException                                                                                 100%
+  Oficina.Execucao.Aplicacao.Execucoes.ConsultarExecucoesHandler                                                                                       100%
+  Oficina.Execucao.Aplicacao.Execucoes.EnfileirarExecucaoHandler                                                                                       100%
+  Oficina.Execucao.Aplicacao.Execucoes.ExecucaoNaoEncontradaException                                                                                  100%
+
+Oficina.Execucao.Dominio                                                                                                                               100%
+  Oficina.Execucao.Dominio.Execucoes.ExecucaoInvalidaException                                                                                         100%
+  Oficina.Execucao.Dominio.Execucoes.ExecucaoOs                                                                                                        100%
+  Oficina.Execucao.Dominio.Execucoes.ItemExecucao                                                                                                      100%
+  Oficina.Execucao.Dominio.Execucoes.RegraCapacidade                                                                                                   100%
+  Oficina.Execucao.Dominio.Execucoes.TransicaoExecucaoInvalidaException                                                                                100%
+
+Oficina.Execucao.Infraestrutura                                                                                                                       97.1%
+  Oficina.Execucao.Infraestrutura.DependencyInjection                                                                                                  100%
+  Oficina.Execucao.Infraestrutura.Mensageria.ConfiguracaoMensageria                                                                                    100%
+  Oficina.Execucao.Infraestrutura.Mensageria.IniciarExecucaoConsumer                                                                                   100%
+  Oficina.Execucao.Infraestrutura.Mensageria.NomesMensageria                                                                                           100%
+  Oficina.Execucao.Infraestrutura.Mensageria.PublicadorMensagensMassTransit                                                                            100%
+  Oficina.Execucao.Infraestrutura.Persistencia.CriadorTabelaHostedService                                                                               80%
+  Oficina.Execucao.Infraestrutura.Persistencia.EsquemaTabelaExecucao                                                                                   100%
+  Oficina.Execucao.Infraestrutura.Persistencia.MapeadorExecucaoDynamoDb                                                                                100%
+  Oficina.Execucao.Infraestrutura.Persistencia.RepositorioExecucaoDynamoDb                                                                             100%
+  Oficina.Execucao.Infraestrutura.RelogioSistema                                                                                                       100%
+  Oficina.Execucao.Infraestrutura.Telemetria.TelemetriaExecucaoNewRelic                                                                               81.8%
+  System.Text.RegularExpressions.Generated                                                                                                            95.2%
+  System.Text.RegularExpressions.Generated.<RegexGenerator_g>FFA6FD2E11D719762D39616FA98AF1D3CD7FEA3F2CC7568074CA00FB634CA571C__CaractereInvalido_1    100%
+  System.Text.RegularExpressions.Generated.<RegexGenerator_g>FFA6FD2E11D719762D39616FA98AF1D3CD7FEA3F2CC7568074CA00FB634CA571C__PrefixoValido_0       91.6%

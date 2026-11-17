@@ -1,0 +1,53 @@
+@baseUrl = http://localhost:8083/execucao
+# Saida de: ./scripts/gerar-token-dev.sh Atendente
+@token = 
+@osId = 3f2b8c1e-6a4d-4e7b-9c3a-1d2e3f4a5b6c
+
+### Health (anonimo)
+GET {{baseUrl}}/health
+
+### Swagger
+GET {{baseUrl}}/swagger/v1/swagger.json
+
+### Listar execucoes ativas
+GET {{baseUrl}}/api/v1/execucoes
+Authorization: Bearer {{token}}
+
+### Listar por status
+GET {{baseUrl}}/api/v1/execucoes?status=NaFila
+Authorization: Bearer {{token}}
+
+### Obter execucao
+GET {{baseUrl}}/api/v1/execucoes/{{osId}}
+Authorization: Bearer {{token}}
+
+### Iniciar diagnostico
+POST {{baseUrl}}/api/v1/execucoes/{{osId}}/diagnostico
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "observacao": "Diagnostico iniciado" }
+
+### Iniciar reparo
+POST {{baseUrl}}/api/v1/execucoes/{{osId}}/reparo
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "observacao": "Reparo iniciado" }
+
+### Finalizar execucao
+POST {{baseUrl}}/api/v1/execucoes/{{osId}}/finalizacao
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "observacao": "Servico concluido" }
+
+### Negativo: sem token (401)
+GET {{baseUrl}}/api/v1/execucoes
+
+### Negativo: transicao invalida, finalizar sem reparo (422)
+POST {{baseUrl}}/api/v1/execucoes/{{osId}}/finalizacao
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{}

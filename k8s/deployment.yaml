@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oficina-execucao
+  namespace: ${NAMESPACE}
+  labels:
+    app: oficina-execucao
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: oficina-execucao
+  template:
+    metadata:
+      labels:
+        app: oficina-execucao
+    spec:
+      # IRSA: credenciais AWS (SQS/DynamoDB) vêm da role anotada neste ServiceAccount.
+      serviceAccountName: oficina-execucao
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654
+        runAsGroup: 1654
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: oficina-execucao
+          # ECR_REPOSITORY e IMAGE_TAG são substituídos pelo CD antes do apply.
+          image: "${ECR_REPOSITORY}:${IMAGE_TAG}"
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: oficina-execucao-config
+            - secretRef:
+                name: oficina-execucao-secret
+          # HOSTNAME (nome do pod) é definido pelo próprio Kubernetes e dá nome à fila
+          # SQS por instância do barramento; não é declarado aqui.
+          env:
+            - name: AWS_REGION
+              value: "us-east-1"
+            # Liga o agente do New Relic (presente na imagem, desligado por padrão).
+            - name: CORECLR_ENABLE_PROFILING
+              value: "1"
+            - name: NEW_RELIC_APP_NAME
+              value: "oficina-execucao"
+            - name: NEW_RELIC_LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: oficina-execucao-secret
+                  key: NewRelic__LicenseKey
+            # AMBIENTE é "prd" ou "hml" (derivado da branch pelo cd.yml).
+            - name: NEW_RELIC_LABELS
+              value: "ambiente:${AMBIENTE}"
+            # rootfs read-only: o único ponto gravável é /tmp (emptyDir); agente e
+            # profiler nativo gravam seus logs direto lá (um subdiretório inexistente
+            # derrubaria o processo na inicialização com o profiler ligado).
+            - name: NEW_RELIC_LOG_DIRECTORY
+              value: "/tmp"
+            - name: NEWRELIC_PROFILER_LOG_DIRECTORY
+              value: "/tmp"
+          # Dimensionado COM o agente APM ligado (~215Mi RSS em repouso, medido no
+          # oficina-app); 512Mi dá margem ao GC.
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1654
+            runAsGroup: 1654
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

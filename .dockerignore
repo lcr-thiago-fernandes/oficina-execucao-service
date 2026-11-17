@@ -13,6 +13,6 @@ tests/
 http/
 .env
 .env.local
-docker-compose.yml
+docker/docker-compose.yml
 **/*.user
 .superpowers/
