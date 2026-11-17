@@ -86,7 +86,8 @@ jobs:
     runs-on: ubuntu-latest
     services:
       sonarqube:
-        image: sonarqube:26.10.0.133078-community
+        # Imagem vazia = service nao sobe (so e necessario no modo efemero, sem SONAR_TOKEN).
+        image: ${{ secrets.SONAR_TOKEN == '' && 'sonarqube:26.10.0.133078-community' || '' }}
         env:
           SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
         ports:
@@ -235,6 +236,7 @@ jobs:
           qg_status=$(echo "$qg" | jq -r '.projectStatus.status')
           metrics="coverage,line_coverage,tests,bugs,vulnerabilities,security_hotspots,code_smells,duplicated_lines,duplicated_lines_density,ncloc,sqale_rating,reliability_rating,security_rating"
           ms=$(curl -fsS -u "$auth" "$SONAR_LOCAL_URL/api/measures/component?component=$SONAR_PROJECT_KEY&metricKeys=$metrics")
+          issues=$(curl -fsS -u "$auth" "$SONAR_LOCAL_URL/api/issues/search?componentKeys=$SONAR_PROJECT_KEY&types=BUG,VULNERABILITY&resolved=false&ps=100")
           version=$(curl -fsS "$SONAR_LOCAL_URL/api/server/version")
           m() { echo "$ms" | jq -r --arg k "$1" '([.component.measures[] | select(.metric==$k) | .value] | first) // "n/a"'; }
 
@@ -267,7 +269,18 @@ jobs:
             echo '```'
             echo
             echo "</details>"
+            echo
+            echo "### Issues BUG / VULNERABILITY (abertas)"
+            echo
+            if [ "$(echo "$issues" | jq '.issues | length')" = "0" ]; then
+              echo "Nenhuma."
+            else
+              echo "| Tipo | Severidade | Regra | Arquivo:linha | Mensagem |"
+              echo "|---|---|---|---|---|"
+              echo "$issues" | jq -r '.issues[] | (.message | gsub("[|]"; "/")) as $msg | (.component | sub("^[^:]*:"; "")) as $file | "| \(.type) | \(.severity // "-") | \(.rule) | \($file):\(.line // "-") | \($msg) |"'
+            fi
           } > sonar-summary/sonar-summary.md
+          echo "$issues" | jq '.' > sonar-summary/issues.json
           echo "$ms" | jq '.' > sonar-summary/measures.json
           echo "$qg" | jq '.' > sonar-summary/quality-gate.json
           cat sonar-summary/sonar-summary.md
